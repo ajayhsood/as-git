@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+
+    environment {
+        REPO_URL = 'https://github.com/your-username/your-vercel-app.git'
+        BRANCH   = 'main'
+        VERCEL_TOKEN = credentials('vercel-token')  // Jenkins credential ID
+        VERCEL_ORG_ID = 'your-vercel-org-id'        // Found in Vercel dashboard
+        VERCEL_PROJECT_ID = 'your-vercel-project-id'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo "Checking out code from GitHub..."
+                git branch: "${BRANCH}", url: "${REPO_URL}"
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                echo "Installing dependencies..."
+                sh 'npm install'
+            }
+        }
+
+        stage('Build Project') {
+            steps {
+                echo "Building project for deployment..."
+                sh 'npm run build'
+            }
+        }
+
+        stage('Deploy to Vercel') {
+            steps {
+                echo "Deploying to Vercel..."
+                withCredentials([string(credentialsId: 'vercel-token', variable: 'VERCEL_TOKEN')]) {
+                    sh '''
+                        npm install -g vercel
+                        vercel deploy --token $VERCEL_TOKEN --yes --prod \
+                            --confirm \
+                            --org $VERCEL_ORG_ID \
+                            --project $VERCEL_PROJECT_ID
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Successfully deployed to Vercel!"
+        }
+        failure {
+            echo "❌ Deployment failed. Check Jenkins logs."
+        }
+    }
+}
+
